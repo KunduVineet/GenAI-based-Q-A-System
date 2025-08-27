@@ -286,17 +286,6 @@ The service uses Google's Gemini 1.5 Flash model by default. You can configure t
 3. Set environment variables in Render dashboard
 4. Deploy with automatic Redis and worker services
 
-### Fly.io Deployment
-```bash
-# Install flyctl
-curl -L https://fly.io/install.sh | sh
-
-# Login and deploy
-fly auth login
-fly launch
-fly deploy
-```
-
 ### Manual Deployment
 1. Set up Redis server
 2. Configure environment variables
