@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # Redis for caching and Celery broker
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # Main FastAPI application
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=false
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    env_file:
+      - ../.env
+    depends_on:
+      - redis
+    volumes:
+      - ../logs:/app/logs
+
+  # Celery worker for background tasks
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    environment:
+      - DEBUG=false
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    env_file:
+      - ../.env
+    depends_on:
+      - redis
+    volumes:
+      - ../logs:/app/logs
+    command: celery -A app.workers.celery_worker worker --loglevel=info --concurrency=2
+
+  # Celery flower for monitoring (optional)
+  flower:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/1
+    depends_on:
+      - redis
+    command: celery -A app.workers.celery_worker flower --port=5555
+
+volumes:
+  redis_data:

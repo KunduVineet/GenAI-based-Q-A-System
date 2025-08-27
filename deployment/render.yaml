@@ -1,0 +1,47 @@
+services:
+  # Main web service
+  - type: web
+    name: ai-backend-api
+    runtime: python3
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DEBUG
+        value: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: ai-backend-redis
+          property: connectionString
+
+  # Redis service
+  - type: redis
+    name: ai-backend-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+
+  # Background worker
+  - type: worker
+    name: ai-backend-worker
+    runtime: python3
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.workers.celery_worker worker --loglevel=info --concurrency=1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DEBUG
+        value: false
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: ai-backend-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: ai-backend-redis
+          property: connectionString
